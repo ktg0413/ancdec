@@ -1,0 +1,26 @@
+[package]
+name = "ancdec"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Fast, precise fixed-point decimal with independent 19+19 digit precision"
+repository = "https://github.com/ktg0413/ancdec"
+keywords = ["decimal", "fixed-point", "no_std", "finance", "arithmetic"]
+categories = ["no-std", "mathematics", "finance"]
+readme = "README.md"
+
+[dependencies]
+serde = { version = "1.0", default-features = false, optional = true }
+
+[features]
+default = []
+serde = ["dep:serde"]
+
+[[bench]]
+name = "ancdec_bench"
+harness = false
+
+[dev-dependencies]
+criterion = "0.5"
+rust_decimal = "1.33"
+serde_json = "1.0"
