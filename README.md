@@ -6,23 +6,12 @@ A fast, precise fixed-point decimal type for `no_std` environments with **indepe
 
 ## Why AncDec?
 
-### Problems with existing decimal types
-
-**rust_decimal**
-- ~28 digits of precision, but integer and fractional parts **share** this limit
-- Large integers reduce fractional precision, and vice versa
-- Example: `12345678901234567890.12345678` exceeds capacity
-
-**Floating point (f32/f64)**
-- Inherent rounding errors in basic arithmetic (`0.1 + 0.2 ≠ 0.3`)
-- Precision shared between integer and fractional parts
-- Unsuitable for financial calculations
-
 ### AncDec's Solution
 
 - **Independent storage**: 19-digit integer + 19-digit fraction (not shared)
 - **Exact arithmetic**: No floating-point rounding errors
-- **Fast**: 1.4x - 1.8x faster than rust_decimal
+- **Overflow-safe**: Wide arithmetic (u256) for mul/div prevents overflow
+- **Fast**: 1.2x - 1.8x faster than rust_decimal
 - **no_std**: Zero heap allocation, embedded-friendly
 - **Zero dependencies**: No external crates required (serde optional)
 - **Safe**: All public APIs return `Result`, internal panics are unreachable by design
@@ -293,13 +282,14 @@ Compared against `rust_decimal` (lower is better):
 
 | Operation | AncDec | rust_decimal | Speedup |
 |-----------|--------|--------------|---------|
-| add       | 6.2 ns | 10.9 ns      | **1.76x** |
-| sub       | 6.2 ns | 10.9 ns      | **1.76x** |
-| mul       | 7.4 ns | 10.5 ns      | **1.42x** |
-| div       | 11.6 ns | 20.3 ns     | **1.76x** |
+| add       | 6.3 ns | 11.1 ns      | **1.76x** |
+| sub       | 6.3 ns | 11.3 ns      | **1.79x** |
+| mul       | 9.5 ns | 11.4 ns      | **1.20x** |
+| div       | 13.7 ns | 19.8 ns     | **1.45x** |
 | cmp       | 4.5 ns | 5.3 ns       | **1.18x** |
 | parse     | 11.3 ns | 11.4 ns     | **1.01x** |
 
+*Benchmarked on Intel Core i7-10750H @ 2.60GHz, Rust 1.87.0, release mode*
 *Benchmarked on Intel Core i7-10750H @ 2.60GHz, Rust 1.60.0, release mode*
 
 ## Precision Limits
@@ -358,16 +348,17 @@ struct Price {
 - **Embedded**: Payment terminals, IoT devices (no_std, zero dependencies)
 - **Games**: In-game currency systems
 - **Scientific**: When exact decimal representation matters
-
+- 
 ## Comparison with Alternatives
 
 | Feature | AncDec | rust_decimal | f64 |
 |---------|--------|--------------|-----|
 | Precision | 19+19 digits (independent) | 28 digits (shared) | ~15 digits (shared) |
 | Exact decimal | ✅ | ✅ | ❌ |
+| Overflow handling | ✅ (u256 wide arithmetic) | ✅ | ❌ (silent) |
 | no_std | ✅ | ⚠️ (feature flag) | ✅ |
 | Zero dependencies | ✅ | ❌ | ✅ |
-| Speed (vs rust_decimal) | **1.4-1.8x faster** | baseline | ~10x faster |
+| Speed (vs rust_decimal) | **1.2-1.8x faster** | baseline | ~10x faster |
 | FFI-friendly | ✅ (`repr(C)`) | ❌ | ✅ |
 | Size | 24 bytes | 16 bytes | 8 bytes |
 

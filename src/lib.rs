@@ -434,25 +434,25 @@ impl AncDec {
 
     #[inline(always)]
     pub fn mul(&self, other: &Self) -> Self {
-        // combine: 12.34 (scale=2) -> 1234
         let a = (self.int as u128) * pow10_128(self.scale) + (self.frac as u128);
         let b = (other.int as u128) * pow10_128(other.scale) + (other.frac as u128);
-        let product = a * b;
-        let scale = self.scale + other.scale;
+        let total_scale = self.scale + other.scale;
 
-        // clamp to TARGET_SCALE
-        let (result, final_scale) = if scale > TARGET_SCALE {
-            (product / pow10_128(scale - TARGET_SCALE), TARGET_SCALE)
+        let (high, low) = mul_wide(a, b);
+
+        let (result, final_scale) = if total_scale > TARGET_SCALE {
+            let divisor = pow10_128(total_scale - TARGET_SCALE);
+            (div_wide(high, low, divisor), TARGET_SCALE)
+        } else if high == 0 {
+            (low, total_scale)
         } else {
-            (product, scale)
+            (u128::MAX, total_scale)
         };
 
         let limit = pow10_128(final_scale);
-        let q = result / limit;
-        let r = result - q * limit;
         Self {
-            int: q as u64,
-            frac: r as u64,
+            int: (result / limit) as u64,
+            frac: (result % limit) as u64,
             scale: final_scale,
             neg: self.neg ^ other.neg,
         }
@@ -466,8 +466,11 @@ impl AncDec {
         let b = (other.int as u128) * pow10_128(other.scale) + (other.frac as u128);
 
         let shift = TARGET_SCALE + other.scale;
+
         let quotient = if shift >= self.scale {
-            (a * pow10_128(shift - self.scale)) / b
+            let multiplier = pow10_128(shift - self.scale);
+            let (high, low) = mul_wide(a, multiplier);
+            div_wide(high, low, b)
         } else {
             a / (b * pow10_128(self.scale - shift))
         };
@@ -538,7 +541,165 @@ impl AncDec {
         self.int == 0 && self.frac == 0
     }
 }
+// ============ Wide Arithmetic (u256) ============
+// 모듈 내부에서만 사용되는 헬퍼 함수들
 
+/// u128 * u128 -> (high, low)
+#[inline]
+fn mul_wide(a: u128, b: u128) -> (u128, u128) {
+    let a_lo = a as u64 as u128;
+    let a_hi = a >> 64;
+    let b_lo = b as u64 as u128;
+    let b_hi = b >> 64;
+
+    let ll = a_lo * b_lo;
+    let hl = a_hi * b_lo;
+    let lh = a_lo * b_hi;
+    let hh = a_hi * b_hi;
+
+    let mid = hl + lh;
+    let mid_carry = (mid < hl) as u128;
+
+    let (low, carry) = ll.overflowing_add(mid << 64);
+    let high = hh + (mid >> 64) + (mid_carry << 64) + carry as u128;
+
+    (high, low)
+}
+
+/// Shift u256 left by `shift` bits (shift < 128)
+#[inline]
+fn shl_u256(high: u128, low: u128, shift: u32) -> (u64, u64, u64, u64) {
+    if shift == 0 {
+        return (
+            (high >> 64) as u64,
+            high as u64,
+            (low >> 64) as u64,
+            low as u64,
+        );
+    }
+
+    let high_shifted = (high << shift) | (low >> (128 - shift));
+    let low_shifted = low << shift;
+
+    (
+        (high_shifted >> 64) as u64,
+        high_shifted as u64,
+        (low_shifted >> 64) as u64,
+        low_shifted as u64,
+    )
+}
+
+/// u128 / u64 -> (quotient, remainder)
+#[inline]
+fn div_u128_by_u64(n: u128, d: u64) -> (u128, u128) {
+    (n / (d as u128), n % (d as u128))
+}
+
+/// Divide u256 by u64 -> u128 quotient
+#[inline]
+fn div_wide_by_u64(high: u128, low: u128, divisor: u64) -> u128 {
+    let n3 = (high >> 64) as u64;
+    let n2 = high as u64;
+    let n1 = (low >> 64) as u64;
+    let n0 = low as u64;
+
+    let (q3, r3) = div_u128_by_u64(n3 as u128, divisor);
+    let (q2, r2) = div_u128_by_u64((r3 << 64) | (n2 as u128), divisor);
+    let (q1, r1) = div_u128_by_u64((r2 << 64) | (n1 as u128), divisor);
+    let (q0, _) = div_u128_by_u64((r1 << 64) | (n0 as u128), divisor);
+
+    debug_assert!(q3 == 0 && q2 == 0);
+    (q1 << 64) | q0
+}
+
+/// Core: divide (n2, n1, n0) by (d1, d0) where values are normalized
+#[inline]
+fn div_3by2(n2: u64, n1: u64, n0: u64, d1: u64, d0: u64) -> (u64, u128) {
+    let n_hi = ((n2 as u128) << 64) | (n1 as u128);
+    let mut q_hat = if n2 >= d1 {
+        u64::MAX
+    } else {
+        (n_hi / (d1 as u128)) as u64
+    };
+    let mut r_hat = n_hi - (q_hat as u128) * (d1 as u128);
+
+    loop {
+        if r_hat <= u64::MAX as u128 {
+            let check = (q_hat as u128) * (d0 as u128);
+            let right = (r_hat << 64) | (n0 as u128);
+            if check <= right {
+                break;
+            }
+        } else {
+            break;
+        }
+        q_hat -= 1;
+        r_hat += d1 as u128;
+        if r_hat > u64::MAX as u128 {
+            break;
+        }
+    }
+
+    let product = (q_hat as u128) * (d0 as u128);
+    let product_hi = (q_hat as u128) * (d1 as u128) + (product >> 64);
+
+    let (sub_lo, borrow1) = (n0 as u128).overflowing_sub(product & ((1u128 << 64) - 1));
+    let (sub_mid, borrow2) =
+        (n1 as u128).overflowing_sub((product_hi & ((1u128 << 64) - 1)) + borrow1 as u128);
+    let sub_hi = (n2 as u128).wrapping_sub((product_hi >> 64) + borrow2 as u128);
+
+    let (rem_hi, q_final) = if sub_hi > n2 as u128 {
+        let add_lo = sub_lo.wrapping_add(d0 as u128);
+        let carry = (add_lo < sub_lo) as u128;
+        let add_mid = sub_mid.wrapping_add((d1 as u128) + carry);
+        ((add_mid << 64) | (add_lo & ((1u128 << 64) - 1)), q_hat - 1)
+    } else {
+        (
+            ((sub_mid & ((1u128 << 64) - 1)) << 64) | (sub_lo & ((1u128 << 64) - 1)),
+            q_hat,
+        )
+    };
+
+    (q_final, rem_hi)
+}
+
+/// Full 4-by-2 division: (n3,n2,n1,n0) / (d1,d0) -> (q1, q0)
+#[inline]
+fn div_4by2(n3: u64, n2: u64, n1: u64, n0: u64, d1: u64, d0: u64) -> (u64, u64) {
+    let (q1, rem1) = div_3by2(n3, n2, n1, d1, d0);
+    let r1_hi = (rem1 >> 64) as u64;
+    let r1_lo = rem1 as u64;
+    let (q0, _) = div_3by2(r1_hi, r1_lo, n0, d1, d0);
+    (q1, q0)
+}
+
+/// Knuth Algorithm D: (u256) / (u128) -> u128
+#[inline]
+fn div_wide(high: u128, low: u128, divisor: u128) -> u128 {
+    debug_assert!(divisor != 0, "division by zero");
+
+    if high == 0 {
+        return low / divisor;
+    }
+
+    debug_assert!(high < divisor, "quotient overflow");
+
+    let d_hi = (divisor >> 64) as u64;
+
+    if d_hi == 0 {
+        return div_wide_by_u64(high, low, divisor as u64);
+    }
+
+    let shift = divisor.leading_zeros();
+    let divisor_norm = divisor << shift;
+    let d1 = (divisor_norm >> 64) as u64;
+    let d0 = divisor_norm as u64;
+
+    let (n3, n2, n1, n0) = shl_u256(high, low, shift);
+    let (q1, q0) = div_4by2(n3, n2, n1, n0, d1, d0);
+
+    ((q1 as u128) << 64) | (q0 as u128)
+}
 // ============ Range ============
 impl AncDec {
     #[inline(always)]
