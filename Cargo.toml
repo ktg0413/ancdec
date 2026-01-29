@@ -5,8 +5,8 @@ edition = "2021"
 license = "MIT"
 description = "Fast, precise fixed-point decimal with independent 19+19 digit precision"
 repository = "https://github.com/ktg0413/ancdec"
-keywords = ["decimal", "fixed-point", "no_std", "finance", "arithmetic"]
-categories = ["no-std", "mathematics", "finance"]
+keywords = ["decimal", "numeric", "precision", "exact-arithmetic", "scientific"]
+categories = ["no-std", "mathematics", "science", "simulation", "embedded"]
 readme = "README.md"
 
 [features]
