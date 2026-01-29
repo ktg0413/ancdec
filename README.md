@@ -13,7 +13,7 @@ A fast, precise fixed-point decimal type for `no_std` environments with **indepe
 - **Overflow-safe**: Wide arithmetic (u256) for mul/div prevents overflow
 - **Fast**: 1.2x - 1.8x faster than rust_decimal
 - **no_std**: Zero heap allocation, embedded-friendly
-- **Zero dependencies**: No external crates required (serde optional)
+- **Zero dependencies**: No external crates required (serde, sqlx optional)
 - **Safe**: All public APIs return `Result`, internal panics are unreachable by design
 
 ## Core Structure
@@ -33,15 +33,19 @@ The `#[repr(C)]` layout enables easy FFI bindings for other languages.
 ## Installation
 ```toml
 [dependencies]
-ancdec = "0.1"
+ancdec = "0.2"
 ```
 
 **Zero dependencies** by default. Only `core` is used (no `std`, no `alloc`).
 
 With serde support:
 ```toml
-[dependencies]
-ancdec = { version = "0.1", features = ["serde"] }
+ancdec = { version = "0.2", features = ["serde"] }
+```
+
+With SQLx (PostgreSQL) support:
+```toml
+ancdec = { version = "0.2", features = ["sqlx"] }
 ```
 
 ## Usage
@@ -290,7 +294,6 @@ Compared against `rust_decimal` (lower is better):
 | parse     | 11.3 ns | 11.4 ns     | **1.01x** |
 
 *Benchmarked on Intel Core i7-10750H @ 2.60GHz, Rust 1.87.0, release mode*
-*Benchmarked on Intel Core i7-10750H @ 2.60GHz, Rust 1.60.0, release mode*
 
 ## Precision Limits
 
@@ -325,6 +328,7 @@ let d = c * c;  // Result has 19 decimal places
 |---------|--------------|-------------|
 | (default) | **None** | Core functionality, only uses `core` |
 | `serde` | `serde` | Serialization/deserialization support |
+| `sqlx` | `sqlx`, `std` | PostgreSQL NUMERIC type support |
 
 ### Serde
 
@@ -340,6 +344,42 @@ struct Price {
 // JSON: {"amount": "123.456"}
 ```
 
+### SQLx
+
+When enabled, AncDec can be used directly with PostgreSQL NUMERIC columns:
+```rust
+use sqlx::{PgPool, Row};
+use ancdec::AncDec;
+
+let pool = PgPool::connect("postgres://...").await?;
+
+// Insert
+let price: AncDec = "123.456".parse()?;
+sqlx::query("INSERT INTO products (price) VALUES ($1)")
+    .bind(&price)
+    .execute(&pool)
+    .await?;
+
+// Select
+let row = sqlx::query("SELECT price FROM products WHERE id = $1")
+    .bind(1i64)
+    .fetch_one(&pool)
+    .await?;
+let price: AncDec = row.get("price");
+
+// With query_as
+#[derive(sqlx::FromRow)]
+struct Product {
+    id: i64,
+    price: AncDec,
+}
+
+let product: Product = sqlx::query_as("SELECT id, price FROM products WHERE id = $1")
+    .bind(1i64)
+    .fetch_one(&pool)
+    .await?;
+```
+
 ## Use Cases
 
 - **Finance**: Exact monetary calculations
@@ -348,7 +388,7 @@ struct Price {
 - **Embedded**: Payment terminals, IoT devices (no_std, zero dependencies)
 - **Games**: In-game currency systems
 - **Scientific**: When exact decimal representation matters
-- 
+
 ## Comparison with Alternatives
 
 | Feature | AncDec | rust_decimal | f64 |
@@ -371,5 +411,6 @@ MIT License
 Contributions welcome! Please ensure:
 - All tests pass (`cargo test`)
 - Serde tests pass (`cargo test --features serde`)
+- SQLx tests pass (`cargo test --features sqlx`)
 - Benchmarks don't regress (`cargo bench`)
 - Code follows existing style

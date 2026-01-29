@@ -622,3 +622,137 @@ fn test_frac_truncates_at_19() {
     let a: AncDec = "0.12345678901234567890123".parse().unwrap();
     assert_eq!(a.scale, 19);
 }
+
+#[cfg(feature = "sqlx")]
+mod tests {
+    use ancdec::AncDec;
+    use sqlx::{PgPool, Row};
+
+    async fn setup_pool() -> PgPool {
+        let url = std::env::var("DATABASE_URL")
+            .unwrap_or_else(|_| "postgres://test:test@localhost:5432/ancdec_test".to_string());
+        PgPool::connect(&url).await.expect("Failed to connect")
+    }
+
+    #[tokio::test]
+    async fn test_insert_select() {
+        let pool = setup_pool().await;
+
+        sqlx::query(
+            "CREATE TABLE IF NOT EXISTS test_ancdec (id SERIAL PRIMARY KEY, value NUMERIC)",
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+
+        let original: AncDec = "12345.6789012345678".parse().unwrap();
+        sqlx::query("INSERT INTO test_ancdec (value) VALUES ($1)")
+            .bind(&original)
+            .execute(&pool)
+            .await
+            .unwrap();
+
+        let row = sqlx::query("SELECT value FROM test_ancdec ORDER BY id DESC LIMIT 1")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+
+        let retrieved: AncDec = row.get("value");
+        assert_eq!(original, retrieved);
+
+        sqlx::query("DROP TABLE test_ancdec")
+            .execute(&pool)
+            .await
+            .unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_negative() {
+        let pool = setup_pool().await;
+
+        sqlx::query("CREATE TABLE IF NOT EXISTS test_neg (id SERIAL PRIMARY KEY, value NUMERIC)")
+            .execute(&pool)
+            .await
+            .unwrap();
+
+        let original: AncDec = "-9999.123456789".parse().unwrap();
+        sqlx::query("INSERT INTO test_neg (value) VALUES ($1)")
+            .bind(&original)
+            .execute(&pool)
+            .await
+            .unwrap();
+
+        let row = sqlx::query("SELECT value FROM test_neg ORDER BY id DESC LIMIT 1")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+
+        let retrieved: AncDec = row.get("value");
+        assert_eq!(original, retrieved);
+
+        sqlx::query("DROP TABLE test_neg")
+            .execute(&pool)
+            .await
+            .unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_zero() {
+        let pool = setup_pool().await;
+
+        sqlx::query("CREATE TABLE IF NOT EXISTS test_zero (id SERIAL PRIMARY KEY, value NUMERIC)")
+            .execute(&pool)
+            .await
+            .unwrap();
+
+        let original = AncDec::ZERO;
+        sqlx::query("INSERT INTO test_zero (value) VALUES ($1)")
+            .bind(&original)
+            .execute(&pool)
+            .await
+            .unwrap();
+
+        let row = sqlx::query("SELECT value FROM test_zero LIMIT 1")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+
+        let retrieved: AncDec = row.get("value");
+        assert!(retrieved.is_zero());
+
+        sqlx::query("DROP TABLE test_zero")
+            .execute(&pool)
+            .await
+            .unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_large_precision() {
+        let pool = setup_pool().await;
+
+        sqlx::query("CREATE TABLE IF NOT EXISTS test_prec (id SERIAL PRIMARY KEY, value NUMERIC)")
+            .execute(&pool)
+            .await
+            .unwrap();
+
+        let original: AncDec = "1234567890123456789.1234567890123456789".parse().unwrap();
+        sqlx::query("INSERT INTO test_prec (value) VALUES ($1)")
+            .bind(&original)
+            .execute(&pool)
+            .await
+            .unwrap();
+
+        let row = sqlx::query("SELECT value FROM test_prec LIMIT 1")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+
+        let retrieved: AncDec = row.get("value");
+        assert_eq!(original, retrieved);
+
+        sqlx::query("DROP TABLE test_prec")
+            .execute(&pool)
+            .await
+            .unwrap();
+    }
+}
