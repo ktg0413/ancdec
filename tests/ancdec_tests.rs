@@ -1,4 +1,5 @@
 // tests/ancdec_tests.rs
+#![cfg(feature = "dec64")]
 
 use ancdec::{AncDec, RoundMode};
 
@@ -488,6 +489,63 @@ fn test_pow_negative() {
     assert_eq!(a.pow(-1), "0.5".parse().unwrap());
 }
 
+// ============ Square Root ============
+#[test]
+fn test_sqrt_perfect_squares() {
+    assert_eq!(AncDec::ZERO.sqrt(), AncDec::ZERO);
+    let one: AncDec = "1".parse().unwrap();
+    assert_eq!(one.sqrt().to_string(), "1.000000000000000000");
+    let four: AncDec = "4".parse().unwrap();
+    assert_eq!(four.sqrt().to_string(), "2.000000000000000000");
+    let nine: AncDec = "9".parse().unwrap();
+    assert_eq!(nine.sqrt().to_string(), "3.000000000000000000");
+    let hundred: AncDec = "100".parse().unwrap();
+    assert_eq!(hundred.sqrt().to_string(), "10.000000000000000000");
+}
+
+#[test]
+fn test_sqrt_two() {
+    let two: AncDec = "2".parse().unwrap();
+    let result = two.sqrt();
+    // sqrt(2) = 1.41421356237309504880...
+    // floor(sqrt(2) * 10^18) = 1414213562373095048
+    assert_eq!(result.to_string(), "1.414213562373095048");
+}
+
+#[test]
+fn test_sqrt_fractional() {
+    let val: AncDec = "0.25".parse().unwrap();
+    assert_eq!(val.sqrt().to_string(), "0.500000000000000000");
+    let val: AncDec = "0.01".parse().unwrap();
+    assert_eq!(val.sqrt().to_string(), "0.100000000000000000");
+}
+
+#[test]
+fn test_sqrt_roundtrip() {
+    // floor(sqrt(val))^2 <= val (guaranteed by isqrt)
+    // mul truncates downward, so sq <= mathematical result <= val
+    let val: AncDec = "7".parse().unwrap();
+    let root = val.sqrt();
+    let sq = root * root;
+    assert!(sq <= val);
+}
+
+#[test]
+fn test_sqrt_large() {
+    let val: AncDec = "1000000000".parse().unwrap();
+    let root = val.sqrt();
+    assert_eq!(root.int, 31622);
+    let sq = root * root;
+    assert!(sq <= val);
+}
+
+#[test]
+#[should_panic(expected = "square root of negative")]
+fn test_sqrt_negative_panics() {
+    let neg: AncDec = "-4".parse().unwrap();
+    neg.sqrt();
+}
+
 // ============ Conversion ============
 #[test]
 fn test_to_f64() {
@@ -499,6 +557,12 @@ fn test_to_f64() {
 fn test_to_i64() {
     let a: AncDec = "-42.99".parse().unwrap();
     assert_eq!(a.to_i64(), -42);
+}
+
+#[test]
+fn test_to_i128() {
+    let a: AncDec = "-1000000000000000000.5".parse().unwrap();
+    assert_eq!(a.to_i128(), -1000000000000000000);
 }
 
 // ============ Default ============
@@ -600,7 +664,8 @@ fn test_zero_operations() {
 fn test_large_numbers() {
     let a: AncDec = "9999999999999999999".parse().unwrap();
     let b: AncDec = "1".parse().unwrap();
-    let _ = a + b;
+    let result = a + b;
+    assert_eq!(result, "10000000000000000000".parse().unwrap());
 }
 
 #[test]
@@ -609,18 +674,32 @@ fn test_high_precision() {
     assert_eq!(a.scale, 18);
 }
 
+#[test]
+#[should_panic]
+fn test_div_by_zero_panics() {
+    let a: AncDec = "5".parse().unwrap();
+    let _ = a / AncDec::ZERO;
+}
+
+#[test]
+fn test_negative_zero_equals_zero() {
+    let neg_zero: AncDec = "-0".parse().unwrap();
+    assert_eq!(neg_zero, AncDec::ZERO);
+}
+
 // ============ Overflow/Truncation ============
 #[test]
-fn test_int_overflow_saturates() {
-    // u64::MAX = 18446744073709551615 (20 digits)
-    let a: AncDec = "99999999999999999999".parse().unwrap();
-    assert_eq!(a.int, u64::MAX);
+fn test_int_overflow_returns_error() {
+    // u64::MAX = 18446744073709551615 (20 digits); parsing a larger number should return Overflow error
+    let result: Result<AncDec, _> = "99999999999999999999".parse();
+    assert!(result.is_err());
 }
 
 #[test]
 fn test_frac_truncates_at_19() {
     let a: AncDec = "0.12345678901234567890123".parse().unwrap();
     assert_eq!(a.scale, 19);
+    assert_eq!(a.frac, 1234567890123456789);
 }
 
 #[cfg(feature = "sqlx")]

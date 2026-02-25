@@ -1,0 +1,76 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    name: Test (${{ matrix.rust }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        rust: [stable, 1.82.0]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.rust }}
+      - run: cargo test
+      - run: cargo test --features serde
+
+  test-features:
+    name: Feature combinations
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo test --no-default-features --features dec8
+      - run: cargo test --no-default-features --features dec32
+      - run: cargo test --no-default-features --features dec64
+      - run: cargo test --no-default-features --features dec128
+      - run: cargo test --no-default-features --features "dec8,dec32"
+      - run: cargo test --no-default-features --features "dec64,dec128"
+
+  clippy:
+    name: Clippy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - run: cargo clippy -- -D warnings
+      - run: cargo clippy --no-default-features --features dec8 -- -D warnings
+      - run: cargo clippy --no-default-features --features dec32 -- -D warnings
+      - run: cargo clippy --no-default-features --features dec64 -- -D warnings
+      - run: cargo clippy --no-default-features --features dec128 -- -D warnings
+
+  fmt:
+    name: Format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - run: cargo fmt --check
+
+  no-std:
+    name: no_std build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: thumbv7em-none-eabihf
+      - run: cargo build --target thumbv7em-none-eabihf --no-default-features --features dec8
+      - run: cargo build --target thumbv7em-none-eabihf --no-default-features --features dec32
+      - run: cargo build --target thumbv7em-none-eabihf --no-default-features --features dec64
+      - run: cargo build --target thumbv7em-none-eabihf --no-default-features --features dec128
+      - run: cargo build --target thumbv7em-none-eabihf
