@@ -620,3 +620,9 @@ Contributions welcome! Please ensure:
 - Serde tests pass (`cargo test --features serde`)
 - Benchmarks don't regress (`cargo bench`)
 - Code follows existing style
+
+## AI Usage
+
+The core `AncDec` (u64) type — including its architecture, algorithms, and all implementation details — was designed and written entirely by the author from scratch without AI assistance.
+
+AI tools (Claude) were used to accelerate the development of derivative types (`AncDec8`, `AncDec32`, `AncDec128`) whose implementations follow the same patterns as the original `AncDec` with adjusted integer sizes and scale ranges. The author reviewed and verified all AI-generated code.
