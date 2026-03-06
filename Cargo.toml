@@ -1,10 +1,10 @@
 [package]
 name = "ancdec"
-version = "0.3.1"
+version = "0.3.2"
 edition = "2021"
 rust-version = "1.82"
 license = "MIT"
-description = "Fast, precise fixed-point decimal with independent int/frac storage (u64: 19+19, u128: 38+38 digits)"
+description = "Fast, precise anchored decimal with independent integer/fraction fields (u64: 19+19, u128: 38+38 digits)"
 repository = "https://github.com/ktg0413/ancdec"
 keywords = ["decimal", "numeric", "precision", "exact-arithmetic", "scientific"]
 categories = ["no-std", "mathematics", "science", "simulation", "embedded"]
