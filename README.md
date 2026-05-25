@@ -635,6 +635,10 @@ Division by zero panics (consistent with Rust's integer division). Use `is_zero(
 
 ## Changelog
 
+### v0.3.4
+
+- Updated crate description and README subtitle to accurately reflect 4-type family.
+
 ### v0.3.3
 
 **Bug Fixes:**
