@@ -2,7 +2,7 @@
 
 ## Anchored Decimal
 
-A family of four `no_std` exact-decimal types with independent integer and fractional fields — from 4 bytes (embedded) to 40 bytes (institutional).
+A `no_std` Rust decimal where fraction precision never shrinks as integers grow — four types from 4 bytes (embedded) to 40 bytes (institutional), integer and fraction stored independently.
 
 - **AncDec8** (u8): 2-digit integer + 2-digit fraction, 4 bytes — embedded/IoT
 - **AncDec32** (u32): 9-digit integer + 9-digit fraction, 12 bytes — general purpose
@@ -11,7 +11,7 @@ A family of four `no_std` exact-decimal types with independent integer and fract
 
 ## Why AncDec?
 
-- **Independent storage**: Integer and fraction stored separately (not shared)
+- **Stable fraction precision**: Fraction digits never shrink as integers grow — each part has its own full-width field
 - **Exact arithmetic**: No floating-point rounding errors
 - **Overflow-safe**: Wide arithmetic (u256/u512) for mul/div prevents overflow
 - **Fast**: Competitive with rust_decimal across all operations
@@ -634,6 +634,10 @@ Division by zero panics (consistent with Rust's integer division). Use `is_zero(
 | Struct size | 4 bytes | 12 bytes | 24 bytes | 40 bytes | 16 bytes | 8 bytes |
 
 ## Changelog
+
+### v0.3.5
+
+- Updated crate description and README subtitle to lead with the core value: fraction precision never shrinks as integers grow.
 
 ### v0.3.4
 

@@ -1,10 +1,10 @@
 [package]
 name = "ancdec"
-version = "0.3.4"
+version = "0.3.5"
 edition = "2021"
 rust-version = "1.82"
 license = "MIT"
-description = "Exact decimal family for no_std: 4 types from embedded (4B, 4-digit) to institutional (40B, 76-digit), split int/frac storage"
+description = "no_std Rust decimal: fraction precision never shrinks as integers grow; 4 types from u8(2+2) to u128(38+38) digits"
 repository = "https://github.com/ktg0413/ancdec"
 keywords = ["decimal", "numeric", "precision", "exact-arithmetic", "scientific"]
 categories = ["no-std", "mathematics", "science", "simulation", "embedded"]
