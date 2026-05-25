@@ -2,7 +2,7 @@
 
 ## Anchored Decimal
 
-A fast, precise fixed-point decimal type for `no_std` environments with **independent** integer and fractional parts.
+A family of four `no_std` exact-decimal types with independent integer and fractional fields — from 4 bytes (embedded) to 40 bytes (institutional).
 
 - **AncDec8** (u8): 2-digit integer + 2-digit fraction, 4 bytes — embedded/IoT
 - **AncDec32** (u32): 9-digit integer + 9-digit fraction, 12 bytes — general purpose
