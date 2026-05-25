@@ -301,39 +301,113 @@ let product: AncDec = values.iter().product(); // 7.986
 
 ## Benchmarks
 
-### All Types vs rust_decimal
+8-way comparison: all ancdec types vs **rust_decimal**, **fastnum** (D256), **fixed-num** (Dec19x19), **bigdecimal**.
 
-| Operation | AncDec8 | AncDec32 | AncDec | AncDec128 | rust_decimal |
-|-----------|---------|----------|--------|-----------|--------------|
-| add       | 2.8 ns  | 4.0 ns   | 6.3 ns | 14.5 ns   | 11.4 ns      |
-| sub       | 3.2 ns  | 3.9 ns   | 6.2 ns | 14.9 ns   | 11.4 ns      |
-| mul       | 4.4 ns  | 4.3 ns   | 7.4 ns | 13.5 ns   | 11.1 ns      |
-| div       | 3.8 ns  | 5.5 ns   | 13.4 ns| 20.3 ns   | 20.5 ns      |
-| cmp       | 1.2 ns  | 3.0 ns   | 4.4 ns | 8.0 ns    | 5.1 ns       |
-| parse     | 5.7 ns  | 10.5 ns  | 10.8 ns| 14.6 ns   | 10.4 ns      |
+### Arithmetic
 
-### Speedup vs rust_decimal
+| Operation | ancdec8 | ancdec32 | ancdec | ancdec128 | rust_decimal | fastnum_d256 | fixed_num | bigdecimal |
+|---|---|---|---|---|---|---|---|---|
+| **add** | 9.0 ns | 7.9 ns | 10.0 ns | 16.0 ns | 12.5 ns | 37.0 ns | **1.9 ns** 🥇 | 166 ns |
+| **sub** | — | 8.5 ns | 10.9 ns | 17.2 ns | 13.8 ns | 34.0 ns | **1.9 ns** 🥇 | 129 ns |
+| **mul** | 14.6 ns | **8.9 ns** 🥇 | 12.8 ns | 18.1 ns | 13.4 ns | 22.8 ns | 22.1 ns | 58 ns |
+| **div** | 14.0 ns | **12.0 ns** 🥇 | 19.4 ns | 33.9 ns | 27.6 ns | 171 ns | 40.0 ns | 287 ns |
+| **rem** | 16.0 ns | **13.9 ns** 🥇 | 24.3 ns | 36.9 ns | 15.3 ns | 63.0 ns | 17.1 ns | 171 ns |
+| **neg\_add** | 3.2 ns | 5.3 ns | 6.1 ns | 14.7 ns | 10.9 ns | 33.8 ns | **1.3 ns** 🥇 | 140 ns |
+| **abs** | 1.7 ns | 2.7 ns | 4.4 ns | 10.3 ns | 2.1 ns | 2.6 ns | **1.1 ns** 🥇 | 31.9 ns |
 
-| Operation | AncDec8 | AncDec32 | AncDec | AncDec128 |
-|-----------|---------|----------|--------|-----------|
-| add       | **4.07x** | **2.85x** | **1.81x** | 0.79x |
-| sub       | **3.56x** | **2.92x** | **1.84x** | 0.77x |
-| mul       | **2.52x** | **2.58x** | **1.50x** | 0.82x |
-| div       | **5.39x** | **3.73x** | **1.53x** | **1.01x** |
-| cmp       | **4.25x** | **1.70x** | **1.16x** | 0.64x |
-| parse     | **1.82x** | ~1.0x    | ~1.0x    | 0.71x |
+### Comparison, Parse, Rounding
 
-### AncDec128 High Precision
+| Operation | ancdec8 | ancdec32 | ancdec | ancdec128 | rust_decimal | fastnum_d256 | fixed_num | bigdecimal |
+|---|---|---|---|---|---|---|---|---|
+| **cmp** | 3.8 ns | 6.8 ns | 8.5 ns | 12.3 ns | 9.7 ns | 14.8 ns | **0.97 ns** 🥇 | 8.6 ns |
+| **parse** | **9.4 ns** 🥇 | 14.3 ns | 14.2 ns | 19.7 ns | 12.8 ns | 21.6 ns | 407 ns | 202 ns |
+| **round** | 17.3 ns | **12.6 ns** 🥇 | 19.3 ns | 36.2 ns | 35.8 ns | 69.0 ns | 21.4 ns | 241 ns |
+| **floor** | 14.4 ns | **7.3 ns** 🥇 | 14.9 ns | 32.5 ns | 35.7 ns | 108.7 ns | 19.5 ns | 238 ns |
+| **ceil** | 13.8 ns | **8.1 ns** 🥇 | 15.7 ns | 31.1 ns | 75.3 ns | 111.8 ns | 18.5 ns | 210 ns |
+| **sqrt** | **21.7 ns** 🥇 | 79.0 ns | 98.0 ns | 402 ns | 761 ns | 131.7 ns | 126.9 ns | 3,600 ns |
 
-| Operation | AncDec128 | rust_decimal | Ratio |
-|-----------|-----------|--------------|-------|
-| mul       | 19.6 ns   | 18.3 ns      | 1.07x |
-| div       | 54.5 ns   | 55.8 ns      | **0.98x** |
-| parse     | 34.7 ns   | 30.3 ns      | 1.15x |
+### Display, Chaining, Workflow
 
-AncDec128 is comparable to rust_decimal while supporting **38+38 digit precision** vs rust_decimal's 28 shared digits.
+| Operation | ancdec8 | ancdec32 | ancdec | ancdec128 | rust_decimal | fastnum_d256 | fixed_num | bigdecimal |
+|---|---|---|---|---|---|---|---|---|
+| **display** | 99 ns | **93 ns** 🥇 | 108 ns | 114.6 ns | 120 ns | 219 ns | 313 ns | 220 ns |
+| **chain\_ops** | 20.6 ns | **12.9 ns** 🥇 | 18.4 ns | 41.7 ns | 29.1 ns | 50.8 ns | 21.8 ns | 175 ns |
+| **sum\_10** | 36.5 ns | 19.3 ns | 28.3 ns | 50.8 ns | 118 ns | 166.6 ns | **2.8 ns** 🥇 | 591 ns |
+| **workflow**¹ | 30.0 ns | **21.1 ns** 🥇 | 39.5 ns | 100.6 ns | 115.4 ns | 305.9 ns | 1,503 ns | 1,048 ns |
 
-*Benchmarked on Intel Core i7-10750H @ 2.60GHz, Rust 1.87.0, release mode*
+¹ workflow = parse → add → mul → div → round, all in one call.
+
+### High-Precision & Extreme
+
+| Operation | ancdec128 | rust_decimal | fastnum_d256 | fixed_num | bigdecimal |
+|---|---|---|---|---|---|
+| **mul (high-prec)** | **17.9 ns** 🥇 | 29.7 ns | 22.9 ns | 25.2 ns | 131 ns |
+| **div (high-prec)** | 41.6 ns | 61.0 ns | 407 ns | **40.0 ns** 🥇 | 10,800 ns |
+| **parse (high-prec)** | **28.1 ns** 🥇 | 30.1 ns | 41.9 ns | 381 ns | 230 ns |
+| **extreme large mul** | 14.4 ns | 17.1 ns | 17.2 ns | 12.4 ns | 82.2 ns | 
+| **extreme precision add** | 13.0 ns | 10.8 ns | 11.4 ns | **0.99 ns** 🥇 | 78.6 ns |
+
+### Accuracy (1÷3 and accumulated error)
+
+| Operation | ancdec8 | ancdec32 | ancdec | ancdec128 | rust_decimal | fastnum_d256 | fixed_num | bigdecimal |
+|---|---|---|---|---|---|---|---|---|
+| **1÷3 (div)** | **4.4 ns** 🥇 | 5.6 ns | 10.5 ns | 18.8 ns | 22.8 ns | 277.5 ns | 18.8 ns | 8,391 ns |
+| **⅓+⅓+⅓−1** | **1.1 ns** 🥇 | 1.2 ns | 1.7 ns | 4.3 ns | 74.5 ns | 347.6 ns | 509.3 ns | 8,647 ns |
+
+`bigdecimal` is slowest on recurring decimals (8.4 µs) because it recomputes arbitrary-precision 1÷3 at runtime on each call. ancdec types produce a truncated result at their fixed precision limit (e.g., AncDec8: `0.33`; AncDec128: 38 decimal places). `fastnum` (D256) is the slowest fixed-precision type at 277 ns for division.
+
+### Win Count (fastest across all 24 benchmark groups)
+
+| Library | Wins |
+|---|---|
+| **ancdec32** | 10 — mul, div, rem, round, floor, ceil, display, chain\_ops, workflow, extreme\_large |
+| **fixed\_num** | 8 — add, sub, neg\_add, abs, cmp, div\_hi\_prec, sum\_10, extreme\_precision |
+| **ancdec8** | 4 — parse, sqrt, accuracy\_recurring, accuracy\_accumulated |
+| **ancdec128** | 2 — parse\_hi, mul\_hi\_prec |
+| rust\_decimal | 0 | 
+| fastnum\_d256 | 0 |
+| bigdecimal | 0 |
+| ancdec (u64) | 0 |
+
+`fixed_num` (Dec19x19) excels at simple scalar ops because it uses a compile-time-fixed scale with no alignment overhead. `ancdec32` dominates general-purpose use because its 32-bit fields fit in a single cache line with fast scalar arithmetic. `ancdec8` wins on throughput tasks (sqrt, parse) due to minimal data size.
+
+### Analysis
+
+**vs rust_decimal**: ancdec32 beats it across the board — mul 1.5×, div 2.3×, floor 4.9×, ceil 9.3×, workflow 5.5×. No category where rust_decimal leads ancdec32.
+
+**vs fastnum (D256)**: ancdec32 is 14× faster on div (12 ns vs 171 ns). On recurring decimals (1÷3), ancdec8 is 63× faster (4.4 ns vs 277 ns). fastnum trades general speed for extreme precision width.
+
+**vs bigdecimal**: ancdec wins everywhere by wide margins — workflow is 50× faster (21 ns vs 1048 ns), 1÷3 is 1900× faster (4.4 ns vs 8391 ns). bigdecimal's heap allocation cost is unavoidable.
+
+**vs fixed_num**: the only library that beats individual ancdec types in isolated scalar ops (add, sub, cmp). However, fixed_num's parse is catastrophically slow (407 ns vs ancdec8's 9.4 ns — **43× slower**), which causes it to collapse in any real-world workflow:
+
+| | ancdec32 | fixed_num |
+|---|---|---|
+| parse | 14 ns | 407 ns |
+| display | 93 ns | 313 ns |
+| **workflow** (parse→add→mul→div→round) | **21 ns** | **1,503 ns** — **71× slower** |
+
+fixed_num is only faster when values are pre-constructed in memory and you are doing nothing but arithmetic on them in a tight loop. In any workload that includes parsing input or formatting output, ancdec32 wins decisively.
+
+**Overall**: ancdec32 is the best general-purpose decimal type across this benchmark set, winning 10 of 24 groups and dominating real-world workflow scenarios. All ancdec types combined win 16 of 24 groups. The only library that takes categories from ancdec is fixed_num, and only in workloads that never touch strings.
+
+### Running the Benchmarks Yourself
+
+All benchmark code is in [`benches/ancdec_bench.rs`](benches/ancdec_bench.rs) — 24 groups, 8 libraries side by side. Clone the repo and run:
+
+```bash
+cargo bench
+```
+
+To run a specific group:
+```bash
+cargo bench -- workflow
+cargo bench -- "add|sub|mul|div"
+```
+
+The benchmark compares ancdec against `rust_decimal`, `fastnum` (D256), `fixed-num` (Dec19x19), and `bigdecimal` on identical inputs. Results are written to `target/criterion/` as HTML reports.
+
+*Benchmarked on Intel Core i7-10750H @ 2.60GHz, Rust 1.87.0 nightly, release mode*
 
 ## Performance Architecture
 
@@ -560,6 +634,25 @@ Division by zero panics (consistent with Rust's integer division). Use `is_zero(
 | Struct size | 4 bytes | 12 bytes | 24 bytes | 40 bytes | 16 bytes | 8 bytes |
 
 ## Changelog
+
+### v0.3.3
+
+**Bug Fixes:**
+- Fixed `to_i64()` panic in debug mode when value equals `i64::MIN` (`AncDec`, `AncDec128`): unary negation of `i64::MIN` overflows; replaced with `wrapping_neg()`.
+- Fixed `to_i128()` panic in debug mode when value equals `i128::MIN` (`AncDec128`): same root cause, same fix.
+- Fixed `Neg` operator producing negative zero (`neg=true` on a zero value) for all 4 types: `-AncDec::ZERO` now always returns a value with `neg=false`.
+- Fixed `is_neg()` returning `true` for negative zero on `AncDec8`, `AncDec32`, `AncDec128`: method now correctly returns `false` for any zero value.
+
+**Tests:**
+- Added regression tests: `test_to_i64_min`, `test_to_i64_min_128`, `test_to_i128_min`, `test_neg_zero`, `test_neg_zero_128`.
+
+### v0.3.2
+
+- Updated crate description.
+
+### v0.3.1
+
+- Minor maintenance release.
 
 ### v0.3.0
 

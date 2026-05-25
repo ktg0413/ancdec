@@ -100,10 +100,10 @@ impl AncDec128 {
         self.scale
     }
 
-    /// Returns `true` if the value is negative.
+    /// Returns `true` if the value is negative (strictly less than zero).
     #[inline(always)]
     pub fn is_neg(&self) -> bool {
-        self.neg
+        self.neg && !self.is_zero()
     }
 }
 

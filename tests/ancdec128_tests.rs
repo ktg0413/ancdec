@@ -265,6 +265,26 @@ fn test_neg_negative() {
     assert_eq!(-a, "5".parse().unwrap());
 }
 
+#[test]
+fn test_neg_zero_128() {
+    // Bug fix: -0 should not set neg=true; is_neg() must return false for zero
+    assert!(!(-AncDec128::ZERO).is_neg());
+    assert_eq!(-AncDec128::ZERO, AncDec128::ZERO);
+}
+
+#[test]
+fn test_to_i64_min_128() {
+    let a = AncDec128::new(9223372036854775808, 0, 0, true);
+    assert_eq!(a.to_i64(), i64::MIN);
+}
+
+#[test]
+fn test_to_i128_min() {
+    // Bug fix: negating i128::MIN's magnitude via unary - panicked in debug mode
+    let a = AncDec128::new(170141183460469231731687303715884105728, 0, 0, true);
+    assert_eq!(a.to_i128(), i128::MIN);
+}
+
 // ============ Assign Ops ============
 #[test]
 fn test_add_assign() {

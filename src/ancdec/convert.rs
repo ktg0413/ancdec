@@ -25,7 +25,7 @@ impl AncDec {
     pub fn to_i64(&self) -> i64 {
         if self.neg {
             assert!(self.int <= i64::MAX as u64 + 1, "integer overflow in to_i64");
-            -(self.int as i64)
+            (self.int as i64).wrapping_neg()
         } else {
             assert!(self.int <= i64::MAX as u64, "integer overflow in to_i64");
             self.int as i64

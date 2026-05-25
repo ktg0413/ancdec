@@ -52,7 +52,7 @@ impl Neg for AncDec32 {
     #[inline(always)]
     fn neg(self) -> Self {
         Self {
-            neg: !self.neg,
+            neg: !self.neg && !self.is_zero(),
             ..self
         }
     }
@@ -210,7 +210,7 @@ impl Neg for &AncDec32 {
     #[inline(always)]
     fn neg(self) -> AncDec32 {
         AncDec32 {
-            neg: !self.neg,
+            neg: !self.neg && !self.is_zero(),
             ..*self
         }
     }

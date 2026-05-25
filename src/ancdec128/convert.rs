@@ -26,7 +26,7 @@ impl AncDec128 {
     pub fn to_i64(&self) -> i64 {
         if self.neg {
             assert!(self.int <= i64::MAX as u128 + 1, "integer overflow in to_i64");
-            -(self.int as i64)
+            (self.int as i64).wrapping_neg()
         } else {
             assert!(self.int <= i64::MAX as u128, "integer overflow in to_i64");
             self.int as i64
@@ -37,7 +37,7 @@ impl AncDec128 {
     pub fn to_i128(&self) -> i128 {
         if self.neg {
             assert!(self.int <= i128::MAX as u128 + 1, "integer overflow in to_i128");
-            -(self.int as i128)
+            (self.int as i128).wrapping_neg()
         } else {
             assert!(self.int <= i128::MAX as u128, "integer overflow in to_i128");
             self.int as i128

@@ -560,9 +560,25 @@ fn test_to_i64() {
 }
 
 #[test]
+fn test_to_i64_min() {
+    // Bug fix: negating i64::MIN's magnitude via unary - panicked in debug mode
+    let a = AncDec { int: 9223372036854775808, frac: 0, scale: 0, neg: true };
+    assert_eq!(a.to_i64(), i64::MIN);
+}
+
+#[test]
 fn test_to_i128() {
     let a: AncDec = "-1000000000000000000.5".parse().unwrap();
     assert_eq!(a.to_i128(), -1000000000000000000);
+}
+
+#[test]
+fn test_neg_zero() {
+    // Bug fix: -0 should not have neg=true; is_negative() should return false
+    let z = AncDec::ZERO;
+    assert!(!(-z).neg);
+    assert!(!(-z).is_negative());
+    assert_eq!(-z, AncDec::ZERO);
 }
 
 // ============ Default ============
