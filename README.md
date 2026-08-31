@@ -19,6 +19,25 @@ A `no_std` Rust decimal where fraction precision never shrinks as integers grow 
 - **Zero dependencies**: No external crates required (serde, sqlx optional)
 - **Safe**: All public APIs return `Result`, internal panics are unreachable by design
 
+## Origin: from RevDec to AncDec
+
+AncDec began as a different design called **RevDec** (reverse decimal). The goal was already the same: integer arithmetic speed with no loss of fractional precision.
+
+The idea was to store the digits reversed. Each part is written backwards, fraction first and integer second, then zero padded to a fixed width:
+
+```
+999.123  ->  321 999 000
+             ^^^ fraction, reversed
+                 ^^^ integer, reversed
+                     ^^^ zero padding to fixed width
+```
+
+Because the fraction always begins at the top of the field, every value lands on the same digit positions regardless of scale, so no rescaling is needed before an operation, and the whole field can be handled as one plain machine integer. Integer speed, exact decimals, and no shared digit budget between the two parts.
+
+Carries broke it. In this layout each block holds its least significant decimal digit on the left and its most significant on the right, so a decimal carry has to travel left to right across the field. Native integer addition propagates carries the other way, right to left. A plain `+` therefore pushes carries from the integer part into the fraction part instead of out of it, and correcting that means walking the digits manually, which costs exactly the speed the whole representation existed for.
+
+Anchoring the two parts keeps the guarantee and drops the problem. The integer and the fraction each get their own full width field in normal order, so the fraction is never squeezed as the integer grows, each field carries the way a machine integer normally does, and the only carry that needs explicit handling is the single one crossing the boundary between them. Hence the name: **Anc**hored **Dec**imal, RevDec's successor.
+
 ## Why AncDec128?
 
 AncDec128 was introduced to handle **institutional-scale financial data** (e.g., BlackRock fund data) where integer parts regularly exceed `u64::MAX` (~1.8 x 10^19). When processing total asset values, NAV calculations, or aggregated positions, u64 integer overflow was unavoidable.
